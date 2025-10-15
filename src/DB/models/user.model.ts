@@ -66,6 +66,9 @@ export class User {
 
   @Prop({ type: Date, required: false })
   changeCredentialsTime: Date;
+
+  @Prop({ type: String, required: false })
+  profilePicture: string;
 }
 
 const UserSchema = SchemaFactory.createForClass(User);

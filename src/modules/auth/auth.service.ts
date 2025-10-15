@@ -4,7 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { compareHash, generateHash, IUser } from 'src/common';
+import { compareHash, generateHash, IUser, ProviderEnum } from 'src/common';
 import {
   ConfirmEmailDto,
   ForgotPasswordDto,
@@ -15,15 +15,19 @@ import {
 import { UserRepo } from 'src/DB/repo';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from 'src/common/email.service';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
   private users: IUser[] = [];
+  private googleClient: OAuth2Client;
   constructor(
     private readonly userRepo: UserRepo,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  }
 
   async signup(data: SignupDto): Promise<string> {
     const { username, email, password } = data;
@@ -152,5 +156,65 @@ export class AuthService {
       },
     });
     return 'Password reset successfully';
+  }
+
+  async googleSignup(idToken: string): Promise<any> {
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      throw new BadRequestException('Invalid Google token');
+    }
+    const { email, name, picture } = payload;
+    const checkUser = await this.userRepo.findOne({
+      filter: { email },
+    });
+    if (checkUser) {
+      throw new ConflictException('User already exists');
+    }
+    const createdUser = await this.userRepo.create([
+      {
+        username: name,
+        email,
+        confirmEmail: new Date(),
+        provider: ProviderEnum.GOOGLE,
+        password: '',
+        profilePicture: picture,
+      },
+    ]);
+    if (!createdUser) {
+      throw new BadRequestException('Failed to create user');
+    }
+    return createdUser;
+  }
+
+  async googleLogin(idToken: string): Promise<any> {
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      throw new BadRequestException('Invalid Google token');
+    }
+    const { email } = payload;
+    const checkUser = await this.userRepo.findOne({
+      filter: { email },
+    });
+    if (!checkUser) {
+      throw new BadRequestException('User not found');
+    }
+    if (!checkUser.confirmEmail) {
+      throw new BadRequestException('Email not confirmed');
+    }
+    const token = await this.jwtService.signAsync(
+      { email: checkUser.email, sub: checkUser._id },
+      {
+        secret: process.env.JWT_SECRET,
+      },
+    );
+    return { user: checkUser, token };
   }
 }

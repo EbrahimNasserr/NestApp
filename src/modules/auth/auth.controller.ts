@@ -70,4 +70,28 @@ export class AuthController {
     await this.authService.resetPassword(body);
     return { message: 'Password reset successfully' };
   }
+
+  @HttpCode(200)
+  @Post('/google-login')
+  async googleLogin(
+    @Body() body: { idToken: string },
+  ): Promise<Record<string, any>> {
+    const data = (await this.authService.googleLogin(body.idToken)) as Record<
+      string,
+      any
+    >;
+    return { message: 'Login with Google successful', data };
+  }
+
+  @HttpCode(200)
+  @Post('/google-signup')
+  async googleSignup(
+    @Body() body: { idToken: string },
+  ): Promise<Record<string, any>> {
+    const data = (await this.authService.googleSignup(body.idToken)) as Record<
+      string,
+      any
+    >;
+    return { message: 'Signup with Google successful', data };
+  }
 }
