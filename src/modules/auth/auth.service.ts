@@ -4,7 +4,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { compareHash, generateHash, IUser, ProviderEnum } from 'src/common';
+import {
+  compareHash,
+  generateHash,
+  IUser,
+  OtpTypeEnum,
+  ProviderEnum,
+  emailEvent,
+} from 'src/common';
 import {
   ConfirmEmailDto,
   ForgotPasswordDto,
@@ -12,9 +19,10 @@ import {
   ResetPasswordDto,
   SignupDto,
 } from './dto/signup.dto';
-import { UserRepo } from 'src/DB/repo';
+import { OtpRepo, UserRepo } from 'src/DB/repo';
+import { UserDocument } from 'src/DB/models/user.model';
+import { OtpDocument } from 'src/DB/models/otp.model';
 import { JwtService } from '@nestjs/jwt';
-import { MailService } from 'src/common/email.service';
 import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
@@ -23,8 +31,8 @@ export class AuthService {
   private googleClient: OAuth2Client;
   constructor(
     private readonly userRepo: UserRepo,
+    private readonly otpRepo: OtpRepo,
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService,
   ) {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   }
@@ -35,26 +43,38 @@ export class AuthService {
     if (checkUser) {
       throw new ConflictException('User already exists');
     }
-    const otp = Math.random().toString().slice(2, 8);
+
+    const nameParts = username.trim().split(' ');
+    const firstName = nameParts[0] || 'User';
+    const lastName =
+      nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Name';
 
     const user = await this.userRepo.create([
       {
-        username,
+        firstName,
+        lastName,
         email,
         password,
-        confirmEmailOtp: otp,
       },
     ]);
-    if (!user) {
+    if (!user || user.length === 0) {
       throw new BadRequestException('Failed to create user');
     }
 
-    this.mailService
-      .sendMail(email, 'Confirm Email OTP', `Your OTP is ${otp}`)
-      .catch((error) => {
-        console.error('Failed to send confirmation email:', error);
-      });
+    const createdUser = user[0] as UserDocument;
+    const otpCode = Math.random().toString().slice(2, 8);
+    const otp = (await this.otpRepo.create([
+      {
+        code: otpCode,
+        expiresAt: new Date(Date.now() + 2 * 60 * 1000),
+        createdBy: createdUser._id,
+        type: OtpTypeEnum.CONFIRM_EMAIL,
+      },
+    ])) as OtpDocument[];
 
+    if (!otp || otp.length === 0) {
+      throw new BadRequestException('Failed to create OTP');
+    }
     return 'Signup successful! Please check your email to confirm.';
   }
 
@@ -62,16 +82,25 @@ export class AuthService {
     const { email, otp } = data;
     const user = await this.userRepo.findOne({
       filter: { email, confirmEmail: { $exists: false } },
+      options: {
+        populate: {
+          path: 'otp',
+          match: { type: OtpTypeEnum.CONFIRM_EMAIL },
+        },
+      },
     });
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    if (user.confirmEmailOtp !== otp) {
+    if (!(user.otp.length && (await compareHash(otp, user.otp[0].code)))) {
       throw new BadRequestException('Invalid OTP');
     }
     await this.userRepo.updateOne({
       filter: { email },
       update: { confirmEmail: new Date() },
+    });
+    await this.otpRepo.deleteOne({
+      filter: { createdBy: user._id, type: OtpTypeEnum.CONFIRM_EMAIL },
     });
     return 'Email confirmed successfully';
   }
@@ -110,26 +139,35 @@ export class AuthService {
   async forgotPassword(data: ForgotPasswordDto): Promise<string> {
     const { email } = data;
     const user = await this.userRepo.findOne({
-      filter: { email, resetPasswordToken: { $exists: false } },
+      filter: { email, resetPasswordToken: { $ne: null } },
     });
     if (!user) {
       throw new BadRequestException('User not found');
     }
     const resetPasswordToken = Math.random().toString().slice(2, 8);
-    const resetPasswordExpires = new Date(Date.now() + 1000 * 60 * 60 * 24); // 1 day
+    const resetPasswordExpires = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+    const otp = (await this.otpRepo.create([
+      {
+        code: resetPasswordToken,
+        expiresAt: resetPasswordExpires,
+        createdBy: user._id,
+        type: OtpTypeEnum.RESET_PASSWORD,
+      },
+    ])) as OtpDocument[];
+    if (!otp || otp.length === 0) {
+      throw new BadRequestException('Failed to create OTP');
+    }
     await this.userRepo.updateOne({
       filter: { email },
       update: { resetPasswordToken, resetPasswordExpires },
     });
-    this.mailService
-      .sendMail(
-        email,
-        'Reset Password OTP',
-        `Your OTP is ${resetPasswordToken}`,
-      )
-      .catch((error) => {
-        console.error('Failed to send reset password email:', error);
-      });
+    // Emit email event for sending reset password email
+    emailEvent.emit(
+      'sendResetPasswordEmail',
+      email,
+      resetPasswordToken,
+      user.username,
+    );
     return 'Reset password link sent to email';
   }
 
@@ -139,21 +177,33 @@ export class AuthService {
       filter: {
         email,
       },
+      options: {
+        populate: {
+          path: 'otp',
+          match: { type: OtpTypeEnum.RESET_PASSWORD },
+        },
+      },
     });
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    if (user.resetPasswordToken !== otp) {
+    if (!user.otp || user.otp.length === 0) {
+      throw new BadRequestException('No valid reset password OTP found');
+    }
+    const otpRecord = user.otp[0];
+    if (otpRecord.expiresAt < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+    if (!(await compareHash(otp, otpRecord.code))) {
       throw new BadRequestException('Invalid OTP');
     }
     const hashedPassword = await generateHash(password);
     await this.userRepo.updateOne({
       filter: { email },
-      update: {
-        password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
-      },
+      update: { password: hashedPassword },
+    });
+    await this.otpRepo.deleteOne({
+      filter: { createdBy: user._id, type: OtpTypeEnum.RESET_PASSWORD },
     });
     return 'Password reset successfully';
   }
