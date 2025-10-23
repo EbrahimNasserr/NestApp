@@ -11,6 +11,8 @@ import {
   OtpTypeEnum,
   ProviderEnum,
   emailEvent,
+  TokenService,
+  RoleEnum,
 } from 'src/common';
 import {
   ConfirmEmailDto,
@@ -33,6 +35,7 @@ export class AuthService {
     private readonly userRepo: UserRepo,
     private readonly otpRepo: OtpRepo,
     private readonly jwtService: JwtService,
+    private readonly tokenService: TokenService,
   ) {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   }
@@ -108,22 +111,26 @@ export class AuthService {
   async login(data: LoginDto): Promise<any> {
     const { email, password } = data;
     const user = await this.userRepo.findOne({
-      filter: { email },
+      filter: {
+        email,
+        confirmEmail: { $exists: true },
+        provider: ProviderEnum.SYSTEM,
+      },
     });
     if (!user) {
       throw new BadRequestException('User not found');
     }
     const isPasswordValid = await compareHash(password, user.password);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid password');
+      throw new UnauthorizedException('Invalid Credentials');
     }
     if (!user.confirmEmail) {
       throw new BadRequestException('Email not confirmed');
     }
-    const payload = { email: user.email, sub: user._id };
-    const token = await this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_SECRET,
-    });
+    const credentials = await this.tokenService.createLoginCredentials(
+      user._id.toString(),
+      RoleEnum.USER,
+    );
     const userWithoutPassword = await this.userRepo.findOne({
       filter: { email },
       select: {
@@ -133,7 +140,7 @@ export class AuthService {
         resetPasswordExpires: 0,
       },
     });
-    return { user: userWithoutPassword, token };
+    return { user: userWithoutPassword, ...credentials };
   }
 
   async forgotPassword(data: ForgotPasswordDto): Promise<string> {
@@ -259,12 +266,10 @@ export class AuthService {
     if (!checkUser.confirmEmail) {
       throw new BadRequestException('Email not confirmed');
     }
-    const token = await this.jwtService.signAsync(
-      { email: checkUser.email, sub: checkUser._id },
-      {
-        secret: process.env.JWT_SECRET,
-      },
+    const credentials = await this.tokenService.createLoginCredentials(
+      checkUser._id.toString(),
+      RoleEnum.USER,
     );
-    return { user: checkUser, token };
+    return { user: checkUser, ...credentials };
   }
 }
