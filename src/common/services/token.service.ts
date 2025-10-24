@@ -37,7 +37,20 @@ export class TokenService {
     token: string;
     secret: string;
   }): Promise<any> => {
-    return await this.jwtService.verifyAsync(token, { secret });
+    try {
+      return await this.jwtService.verifyAsync(token, { secret });
+    } catch (error: any) {
+      // Handle JWT verification errors
+      if (error?.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Invalid token signature');
+      } else if (error?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token has expired');
+      } else if (error?.name === 'NotBeforeError') {
+        throw new UnauthorizedException('Token not active yet');
+      } else {
+        throw new UnauthorizedException('Token verification failed');
+      }
+    }
   };
 
   getSignatureLevel = (

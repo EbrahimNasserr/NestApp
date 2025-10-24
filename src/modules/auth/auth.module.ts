@@ -17,6 +17,6 @@ import { TokenService } from 'src/common';
     JwtService,
     TokenService,
   ],
-  exports: [AuthService],
+  exports: [AuthService, TokenService],
 })
 export class AuthModule {}
