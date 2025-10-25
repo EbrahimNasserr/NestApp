@@ -1,22 +1,25 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Headers, UseInterceptors } from '@nestjs/common';
 import { UserService } from './user.service';
-import { IUser, TokenType } from 'src/common';
-import type { IAuthRequest } from 'src/common/interfaces/token.interface';
-import { AuthenticationGuard } from 'src/common/guards/authentication/authentication.guard';
-import { TokenTypeEnum } from 'src/common/enums/token.enum';
+import { IUser, RoleEnum, User } from 'src/common';
+import { Auth } from 'src/common/decorators/auth.decorator';
+import type { UserDocument } from 'src/DB/models/user.model';
+import { ApplyLangInterceptor } from 'src/common/interceptors';
 
 @Controller('/user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  @TokenType(TokenTypeEnum.Access)
-  @UseGuards(AuthenticationGuard)
+  @UseInterceptors(ApplyLangInterceptor)
+  @Auth([RoleEnum.ADMIN, RoleEnum.USER])
   @Get()
-  getUsers(@Req() req: IAuthRequest): { message: string; data: IUser[] } {
-    if (!req.credentials) {
+  getUsers(
+    @Headers() header: any,
+    @User() user: UserDocument,
+  ): { message: string; data: IUser[] } {
+    console.log(header);
+    if (!user) {
       throw new Error('Authentication required');
     }
-
-    console.log('Authenticated user:', req.credentials.user);
+    console.log(user);
     return {
       message: 'Users fetched successfully',
       data: this.userService.getUsers(),

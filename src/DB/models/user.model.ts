@@ -5,7 +5,7 @@ import {
   SchemaFactory,
   Virtual,
 } from '@nestjs/mongoose';
-import { GenderEnum, generateHash, ProviderEnum, RoleEnum } from 'src/common';
+import { GenderEnum, generateHash, LangEnum, ProviderEnum, RoleEnum } from 'src/common';
 import { HydratedDocument } from 'mongoose';
 import { Otp, OtpDocument } from './otp.model';
 
@@ -70,6 +70,9 @@ export class User {
 
   @Prop({ type: String , enum: RoleEnum , default: RoleEnum.USER })
   role: RoleEnum;
+
+  @Prop({ type: String, enum: LangEnum, default: LangEnum.EN })
+  lang: LangEnum;
 
   @Prop({ type: String, required: false })
   profilePicture: string;
