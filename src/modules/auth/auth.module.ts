@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 import { OtpModel, UserModel, TokenModel } from 'src/DB';
 import { OtpRepo, UserRepo, TokenRepo } from 'src/DB/repo';
 import { JwtService } from '@nestjs/jwt';
-import { TokenService } from 'src/common';
+import { TokenService } from 'src/common/services/token.service';
 
 @Module({
   imports: [UserModel, OtpModel, TokenModel],
@@ -17,6 +17,6 @@ import { TokenService } from 'src/common';
     JwtService,
     TokenService,
   ],
-  exports: [AuthService, TokenService],
+  exports: [AuthService, TokenService, UserRepo, TokenRepo, OtpRepo],
 })
 export class AuthModule {}

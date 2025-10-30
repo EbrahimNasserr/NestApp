@@ -11,9 +11,9 @@ import {
   OtpTypeEnum,
   ProviderEnum,
   emailEvent,
-  TokenService,
   RoleEnum,
 } from 'src/common';
+import { TokenService } from 'src/common/services/token.service';
 import {
   ConfirmEmailDto,
   ForgotPasswordDto,

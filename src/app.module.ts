@@ -8,6 +8,7 @@ import { UserModule } from './modules/user/user.module';
 import { CategoryModule } from './modules/category/category.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { S3Service } from './common/services';
 
 @Module({
   imports: [
@@ -34,6 +35,6 @@ import { MailerModule } from '@nestjs-modules/mailer';
     CategoryModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, S3Service],
 })
 export class AppModule {}

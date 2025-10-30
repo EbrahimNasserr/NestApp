@@ -1,8 +1,5 @@
 import {
   Controller,
-  FileTypeValidator,
-  Get,
-  Headers,
   MaxFileSizeValidator,
   ParseFilePipe,
   Patch,
@@ -11,40 +8,23 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { IUser, RoleEnum, User } from 'src/common';
+import { RoleEnum, User } from 'src/common';
 import { Auth } from 'src/common/decorators/auth.decorator';
 import type { UserDocument } from 'src/DB/models/user.model';
-import { ApplyLangInterceptor } from 'src/common/interceptors';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { localMulterFile, validationMulter } from 'src/common/utils/multer';
+import { cloudMulterFile, localMulterFile, validationMulter } from 'src/common/utils/multer';
 import type { IMulterFile } from 'src/common/utils/multer/local.multer';
+import { StorageEnum } from 'src/common/enums/multer.enum';
 
 @Controller('/user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-  @UseInterceptors(ApplyLangInterceptor)
-  @Auth([RoleEnum.ADMIN, RoleEnum.USER])
-  @Get()
-  getUsers(
-    @Headers() header: any,
-    @User() user: UserDocument,
-  ): { message: string; data: IUser[] } {
-    console.log(header);
-    if (!user) {
-      throw new Error('Authentication required');
-    }
-    console.log(user);
-    return {
-      message: 'Users fetched successfully',
-      data: this.userService.getUsers(),
-    };
-  }
 
   @UseInterceptors(
     FileInterceptor(
       'profileImage',
-      localMulterFile({
-        destination: 'profile-images',
+      cloudMulterFile({
+        storageApproach: StorageEnum.DISK,
         validations: validationMulter.image,
         fileSize: 1024 * 1024 * 5,
       }),
@@ -52,26 +32,23 @@ export class UserController {
   )
   @Auth([RoleEnum.USER])
   @Patch('/profile-image')
-  profileImage(
+  async profileImage(
+    @User() user: UserDocument,
     @UploadedFile(
       new ParseFilePipe({
         fileIsRequired: true,
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
-          new FileTypeValidator({ fileType: 'image/*' }),
-        ],
+        validators: [new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 })],
       }),
     )
     file: IMulterFile,
   ) {
-    // Override the absolute path with relative path starting with 'uploads/'
-    const relativePath = `uploads/profile-images/${file.filename}`;
+    const url = await this.userService.profileImage(user, file);
 
     return {
       message: 'Profile image updated successfully',
       data: {
         ...file,
-        path: relativePath,
+        path: url,
       },
     };
   }
@@ -93,9 +70,7 @@ export class UserController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: true,
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
-        ],
+        validators: [new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 })],
       }),
     )
     file: Array<IMulterFile>,

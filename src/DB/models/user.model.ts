@@ -8,6 +8,7 @@ import {
 import { GenderEnum, generateHash, LangEnum, ProviderEnum, RoleEnum } from 'src/common';
 import { HydratedDocument } from 'mongoose';
 import { Otp, OtpDocument } from './otp.model';
+import { IUser } from 'src/common';
 
 @Schema({
   timestamps: true,
@@ -15,7 +16,7 @@ import { Otp, OtpDocument } from './otp.model';
   toObject: { virtuals: true },
   toJSON: { virtuals: true },
 })
-export class User {
+export class User implements IUser {
   @Prop({ required: true, minlength: 3, maxlength: 20 })
   firstName: string;
 

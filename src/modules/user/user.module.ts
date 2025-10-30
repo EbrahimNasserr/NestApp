@@ -4,12 +4,13 @@ import { UserService } from './user.service';
 import { setDefaultLangMiddleware } from 'src/common';
 import { AuthModule } from '../auth/auth.module';
 import { PreAuth } from 'src/common/middleware/auth.middle';
+import { S3Service } from 'src/common/services';
 @Module({
   imports: [
     AuthModule,
   ],
   controllers: [UserController],
-  providers: [UserService],
+  providers: [UserService, S3Service],
   exports: [],
 })
 export class UserModule {
