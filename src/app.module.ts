@@ -9,6 +9,7 @@ import { CategoryModule } from './modules/category/category.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { S3Service } from './common/services';
+import { BrandModule } from './modules/brand/brand.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { S3Service } from './common/services';
     }),
     AuthModule,
     UserModule,
+    BrandModule,
     CategoryModule,
   ],
   controllers: [AppController],

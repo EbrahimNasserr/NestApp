@@ -5,6 +5,7 @@ import {
   GetObjectCommand,
   GetObjectCommandOutput,
   NoSuchKey,
+  DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { BadRequestException, Injectable } from '@nestjs/common';
@@ -27,7 +28,7 @@ export class S3Service {
   uploadFile = async ({
     storageApproach = StorageEnum.MEMORY,
     BucketName = process.env.AWS_BUCKET_NAME as string,
-    Acl = 'private',
+    Acl,
     path = 'general',
     file,
   }: {
@@ -39,6 +40,15 @@ export class S3Service {
   }): Promise<string> => {
     if (!file) throw new BadRequestException('File is missing');
 
+    // Validate AWS credentials
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      throw new BadRequestException('AWS credentials are not configured');
+    }
+
+    if (!BucketName) {
+      throw new BadRequestException('AWS bucket name is not configured');
+    }
+
     const fileKey = `${path}/${Date.now()}-${file.originalname}`;
 
     const command = new PutObjectCommand({
@@ -48,11 +58,35 @@ export class S3Service {
         storageApproach === StorageEnum.MEMORY
           ? file.buffer
           : createReadStream(file.path),
-      ACL: Acl as ObjectCannedACL,
+      // Only set ACL if explicitly provided - many buckets have ACLs disabled
+      ...(Acl ? { ACL: Acl as ObjectCannedACL } : {}),
       ContentType: file.mimetype,
     });
 
-    await this.s3.send(command);
+    try {
+      await this.s3.send(command);
+    } catch (error: unknown) {
+      // Provide more helpful error messages
+      const awsError = error as {
+        $metadata?: { httpStatusCode?: number };
+        Code?: string;
+        message?: string;
+      };
+
+      if (awsError?.$metadata?.httpStatusCode === 403) {
+        throw new BadRequestException(
+          `S3 Access Denied: Check your AWS credentials and IAM permissions. ${awsError.Code || ''} - ${awsError.message || ''}`,
+        );
+      }
+      if (awsError?.$metadata?.httpStatusCode === 404) {
+        throw new BadRequestException(
+          `S3 Bucket not found: ${BucketName}. Check your bucket name and region.`,
+        );
+      }
+      throw new BadRequestException(
+        `S3 upload failed: ${awsError.message || awsError.Code || 'Unknown error'}`,
+      );
+    }
 
     return `${fileKey}`;
   };
@@ -117,5 +151,22 @@ export class S3Service {
       }
       throw error;
     }
+  };
+
+  deleteFile = async ({
+    Key,
+    BucketName = process.env.AWS_BUCKET_NAME as string,
+  }: {
+    Key: string;
+    BucketName?: string;
+  }): Promise<void> => {
+    if (!Key) throw new BadRequestException('Key is required');
+
+    const command = new DeleteObjectCommand({
+      Bucket: BucketName,
+      Key,
+    });
+
+    await this.s3.send(command);
   };
 }
