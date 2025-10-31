@@ -15,6 +15,7 @@ import {
   SignupDto,
 } from './dto/signup.dto';
 import { ConfirmEmailDto } from './dto/signup.dto';
+import { IResponse, successResponse } from 'src/common';
 
 @UsePipes(
   new ValidationPipe({
@@ -28,13 +29,9 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('/signup')
-  async signup(@Body() body: SignupDto): Promise<{
-    message: string;
-  }> {
+  async signup(@Body() body: SignupDto): Promise<IResponse<string | undefined>> {
     await this.authService.signup(body);
-    return {
-      message: 'Signup successful! Please check your email to confirm.',
-    };
+    return successResponse('Signup successful! Please check your email to confirm.', 201);
   }
 
   @HttpCode(200)
@@ -46,29 +43,23 @@ export class AuthController {
 
   @HttpCode(200)
   @Post('/confirm-email')
-  async confirmEmail(@Body() body: ConfirmEmailDto): Promise<{
-    message: string;
-  }> {
+  async confirmEmail(@Body() body: ConfirmEmailDto): Promise<IResponse<string | undefined>> {
     await this.authService.confirmEmail(body);
-    return { message: 'Email confirmed successfully' };
+    return successResponse('Email confirmed successfully');
   }
 
   @HttpCode(200)
   @Post('/forgot-password')
-  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<{
-    message: string;
-  }> {
+  async forgotPassword(@Body() body: ForgotPasswordDto): Promise<IResponse<string | undefined>> {
     await this.authService.forgotPassword(body);
-    return { message: 'Reset password link sent to email' };
+    return successResponse('Reset password link sent to email');
   }
 
   @HttpCode(200)
   @Patch('/reset-password')
-  async resetPassword(@Body() body: ResetPasswordDto): Promise<{
-    message: string;
-  }> {
+  async resetPassword(@Body() body: ResetPasswordDto): Promise<IResponse<string | undefined>> {
     await this.authService.resetPassword(body);
-    return { message: 'Password reset successfully' };
+    return successResponse('Password reset successfully');
   }
 
   @HttpCode(200)

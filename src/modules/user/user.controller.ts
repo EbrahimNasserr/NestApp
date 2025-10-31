@@ -8,14 +8,18 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { RoleEnum, User } from 'src/common';
+import { RoleEnum, successResponse, User } from 'src/common';
 import { Auth } from 'src/common/decorators/auth.decorator';
 import type { UserDocument } from 'src/DB/models/user.model';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { cloudMulterFile, localMulterFile, validationMulter } from 'src/common/utils/multer';
+import {
+  cloudMulterFile,
+  localMulterFile,
+  validationMulter,
+} from 'src/common/utils/multer';
 import type { IMulterFile } from 'src/common/utils/multer/local.multer';
 import { StorageEnum } from 'src/common/enums/multer.enum';
-
+import { IResponse } from 'src/common/interfaces';
 @Controller('/user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -41,16 +45,10 @@ export class UserController {
       }),
     )
     file: IMulterFile,
-  ) {
+  ): Promise<IResponse<{ path: string } | undefined>> {
     const url = await this.userService.profileImage(user, file);
 
-    return {
-      message: 'Profile image updated successfully',
-      data: {
-        ...file,
-        path: url,
-      },
-    };
+    return successResponse('Profile image updated successfully', undefined, { path: url });
   }
 
   @UseInterceptors(
