@@ -11,4 +11,6 @@ export interface IBrand {
   createdAt?: Date;
   updatedAt?: Date;
   updatedBy?: Date;
+  freezeAt?: Date;
+  restoreAt?: Date;
 }

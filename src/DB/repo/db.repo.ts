@@ -108,7 +108,7 @@ export abstract class DBRepo<TDocument> {
     data: TDocument[] | Lean<TDocument>[];
     docscount?: number;
     pages?: number;
-    currentPage: string | number;
+    currentPage?: string | number;
   }> {
     let docscount: number | undefined = undefined;
     let pages: number | undefined = undefined;
@@ -166,6 +166,16 @@ export abstract class DBRepo<TDocument> {
     options?: QueryOptions<TDocument>;
   }): Promise<ModifyResult<TDocument> | TDocument | null> {
     return await this.model.findOneAndUpdate(filter, update, options);
+  }
+
+  async findOneAndDelete({
+    filter,
+    options,
+  }: {
+    filter: RootFilterQuery<TDocument>;
+    options?: QueryOptions<TDocument>;
+  }): Promise<TDocument | null> {
+    return await this.model.findOneAndDelete(filter, options);
   }
 
   async findByIdAndUpdate({
