@@ -50,7 +50,10 @@ export class BrandService {
     return brands[0] as BrandDocument;
   }
 
-  async findAll(query: PaginationDto, archived: boolean = false): Promise<{
+  async findAll(
+    query: PaginationDto,
+    archived: boolean = false,
+  ): Promise<{
     data: BrandDocument[];
     pages?: number;
     currentPage?: number;
@@ -88,8 +91,18 @@ export class BrandService {
     };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} brand`;
+  async findOne(
+    brandId: Types.ObjectId,
+    archived: boolean = false,
+  ): Promise<BrandDocument | null> {
+    const brand = await this.brandRepo.findOne({
+      filter: {
+        _id: brandId,
+        ...(archived ? { freezeAt: { $exists: true } } : {}),
+      },
+    });
+    if (!brand) throw new NotFoundException('Brand not found');
+    return brand as BrandDocument;
   }
 
   async update(

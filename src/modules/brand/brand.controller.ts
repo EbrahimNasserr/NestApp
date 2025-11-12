@@ -13,6 +13,7 @@ import {
   UsePipes,
   ValidationPipe,
   Query,
+  NotFoundException,
 } from '@nestjs/common';
 import { BrandService } from './brand.service';
 import { CreateBrandDto } from './dto/create-brand.dto';
@@ -102,9 +103,16 @@ export class BrandController {
     );
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.brandService.findOne(+id);
+  @Get(':brandId')
+  async findOne(
+    @Param() params: BrandParamsDto,
+    @Query() query: { archived: boolean },
+  ): Promise<IResponse<BrandResponse | undefined>> {
+    const brand = await this.brandService.findOne(params.brandId, query.archived);
+    if (!brand) throw new NotFoundException('Brand not found');
+    return successResponse<BrandResponse>('Brand fetched successfully', 200, {
+      brand: brand.toObject(),
+    });
   }
 
   @Auth([RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN])
