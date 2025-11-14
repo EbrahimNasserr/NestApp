@@ -46,8 +46,3 @@ export interface IUser {
   updatedAt?: Date;
 }
 
-export interface ICategory {
-  id: number;
-  name: string;
-  description: string;
-}

@@ -165,6 +165,10 @@ export abstract class DBRepo<TDocument> {
     update: UpdateQuery<TDocument> | UpdateWithAggregationPipeline;
     options?: QueryOptions<TDocument>;
   }): Promise<ModifyResult<TDocument> | TDocument | null> {
+    if (Array.isArray(update)) {
+      update.push({ $set: { _v: { $add: ['$version', 1] } } });
+      return await this.model.findOneAndUpdate(filter, update, options);
+    }
     return await this.model.findOneAndUpdate(filter, update, options);
   }
 
