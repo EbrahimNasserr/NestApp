@@ -91,6 +91,78 @@ export class S3Service {
     return `${fileKey}`;
   };
 
+  uploadFiles = async ({
+    storageApproach = StorageEnum.MEMORY,
+    BucketName = process.env.AWS_BUCKET_NAME as string,
+    Acl,
+    path = 'general',
+    files,
+  }: {
+    storageApproach?: StorageEnum;
+    BucketName?: string;
+    Acl?: string;
+    path?: string;
+    files: Express.Multer.File[];
+  }): Promise<string[]> => {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('Files array is missing or empty');
+    }
+
+    // Validate AWS credentials
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      throw new BadRequestException('AWS credentials are not configured');
+    }
+
+    if (!BucketName) {
+      throw new BadRequestException('AWS bucket name is not configured');
+    }
+
+    // Upload all files in parallel
+    const uploadPromises = files.map(async (file) => {
+      const fileKey = `${path}/${Date.now()}-${Math.random().toString(36).substring(7)}-${file.originalname}`;
+
+      const command = new PutObjectCommand({
+        Bucket: BucketName,
+        Key: fileKey,
+        Body:
+          storageApproach === StorageEnum.MEMORY
+            ? file.buffer
+            : createReadStream(file.path),
+        // Only set ACL if explicitly provided - many buckets have ACLs disabled
+        ...(Acl ? { ACL: Acl as ObjectCannedACL } : {}),
+        ContentType: file.mimetype,
+      });
+
+      try {
+        await this.s3.send(command);
+        return fileKey;
+      } catch (error: unknown) {
+        // Provide more helpful error messages
+        const awsError = error as {
+          $metadata?: { httpStatusCode?: number };
+          Code?: string;
+          message?: string;
+        };
+
+        if (awsError?.$metadata?.httpStatusCode === 403) {
+          throw new BadRequestException(
+            `S3 Access Denied for file ${file.originalname}: Check your AWS credentials and IAM permissions. ${awsError.Code || ''} - ${awsError.message || ''}`,
+          );
+        }
+        if (awsError?.$metadata?.httpStatusCode === 404) {
+          throw new BadRequestException(
+            `S3 Bucket not found: ${BucketName}. Check your bucket name and region.`,
+          );
+        }
+        throw new BadRequestException(
+          `S3 upload failed for file ${file.originalname}: ${awsError.message || awsError.Code || 'Unknown error'}`,
+        );
+      }
+    });
+
+    return Promise.all(uploadPromises);
+  };
+
   createPresignedUrl = async ({
     Key,
     download = 'false',
@@ -168,5 +240,56 @@ export class S3Service {
     });
 
     await this.s3.send(command);
+  };
+
+  deleteFiles = async ({
+    Keys,
+    BucketName = process.env.AWS_BUCKET_NAME as string,
+  }: {
+    Keys: string[];
+    BucketName?: string;
+  }): Promise<void> => {
+    if (!Keys || Keys.length === 0) {
+      throw new BadRequestException('Keys array is missing or empty');
+    }
+
+    // Delete all files in parallel
+    const deletePromises = Keys.map(async (Key) => {
+      if (!Key) {
+        throw new BadRequestException('One or more keys are invalid');
+      }
+
+      const command = new DeleteObjectCommand({
+        Bucket: BucketName,
+        Key,
+      });
+
+      try {
+        await this.s3.send(command);
+      } catch (error: unknown) {
+        // Provide more helpful error messages
+        const awsError = error as {
+          $metadata?: { httpStatusCode?: number };
+          Code?: string;
+          message?: string;
+        };
+
+        if (awsError?.$metadata?.httpStatusCode === 403) {
+          throw new BadRequestException(
+            `S3 Access Denied for key ${Key}: Check your AWS credentials and IAM permissions. ${awsError.Code || ''} - ${awsError.message || ''}`,
+          );
+        }
+        if (awsError?.$metadata?.httpStatusCode === 404) {
+          throw new BadRequestException(
+            `S3 Bucket not found: ${BucketName}. Check your bucket name and region.`,
+          );
+        }
+        throw new BadRequestException(
+          `S3 delete failed for key ${Key}: ${awsError.message || awsError.Code || 'Unknown error'}`,
+        );
+      }
+    });
+
+    await Promise.all(deletePromises);
   };
 }

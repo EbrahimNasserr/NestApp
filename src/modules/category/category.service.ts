@@ -199,7 +199,7 @@ export class CategoryService {
     const image = await this.s3Service.uploadFile({
       file,
       storageApproach: StorageEnum.DISK,
-      path: `${FolderEnum.CATEGORIES}`,
+      path: `${FolderEnum.CATEGORIES}/${checkcategory.assetsFolderId}`,
     });
     const updatedcategory = await this.categoryRepo.findOneAndUpdate({
       filter: { _id: id },
