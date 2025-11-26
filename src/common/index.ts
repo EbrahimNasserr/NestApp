@@ -6,3 +6,5 @@ export * from './email';
 export * from './services';
 export * from './middleware';
 export * from './utils/response';
+export * from './dto';
+export * from './entities';

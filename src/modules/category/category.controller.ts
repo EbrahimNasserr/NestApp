@@ -24,18 +24,18 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { cloudMulterFile, validationMulter } from 'src/common/utils/multer';
 import { StorageEnum } from 'src/common/enums/multer.enum';
 import { Auth } from 'src/common/decorators/auth.decorator';
-import { IResponse, RoleEnum, successResponse, User } from 'src/common';
+import { IResponse, RoleEnum, successResponse, User, PaginationDto, PaginationEntity } from 'src/common';
 import type { UserDocument } from 'src/DB';
 import {
   CategoryResponse,
-  CategoryPaginationResponse,
 } from './entities/category.entity';
-import { PaginationDto } from '../brand/dto/pagination.dto';
 
-@UsePipes(new ValidationPipe({
-  whitelist: true,
-  forbidNonWhitelisted: true,
-}))
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }),
+)
 @Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
@@ -74,9 +74,9 @@ export class CategoryController {
   @Get()
   async findAll(
     @Query() query: PaginationDto,
-  ): Promise<IResponse<CategoryPaginationResponse | undefined>> {
+  ): Promise<IResponse<PaginationEntity<CategoryResponse> | undefined>> {
     const categorys = await this.categoryService.findAll(query);
-    return successResponse<CategoryPaginationResponse>(
+    return successResponse<PaginationEntity<CategoryResponse>>(
       'categorys fetched successfully',
       200,
       {
@@ -96,9 +96,9 @@ export class CategoryController {
   @Get('/archived')
   async findAllArchived(
     @Query() query: PaginationDto,
-  ): Promise<IResponse<CategoryPaginationResponse | undefined>> {
+  ): Promise<IResponse<PaginationEntity<CategoryResponse> | undefined>> {
     const categorys = await this.categoryService.findAll(query, true);
-    return successResponse<CategoryPaginationResponse>(
+    return successResponse<PaginationEntity<CategoryResponse>>(
       'categorys fetched successfully',
       200,
       {

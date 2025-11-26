@@ -6,12 +6,12 @@ import {
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { BrandRepo, CategoryRepo } from 'src/DB/repo';
+import { PaginationDto } from 'src/common';
 import { S3Service } from 'src/common/services';
 import { StorageEnum } from 'src/common/enums/multer.enum';
 import { Types } from 'mongoose';
 import { CategoryDocument, UserDocument } from 'src/DB/models';
 import { ConflictException } from '@nestjs/common';
-import { PaginationDto } from '../brand/dto/pagination.dto';
 import { FolderEnum } from 'src/common/enums/foldr.enums';
 
 @Injectable()
@@ -151,7 +151,6 @@ export class CategoryService {
     const removeBrands = updatecategoryDto.brands ?? [];
     delete updatecategoryDto.removeBrands;
 
-
     const updatedcategory = await this.categoryRepo.findOneAndUpdate({
       filter: { _id: id },
       update: [
@@ -164,9 +163,7 @@ export class CategoryService {
                 {
                   $setDifference: [
                     '$brands',
-                    removeBrands.map((brand) =>
-                      brand.toString(),
-                    ),
+                    removeBrands.map((brand) => brand.toString()),
                   ],
                 },
                 brands.map((brand) =>

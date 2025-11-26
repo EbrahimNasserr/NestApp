@@ -9,6 +9,7 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [BrandModel, AuthModule],
   controllers: [BrandController],
-  providers: [BrandService, BrandRepo, S3Service],
+  providers: [BrandService, S3Service, BrandRepo],
+  exports: [BrandService],
 })
 export class BrandModule {}

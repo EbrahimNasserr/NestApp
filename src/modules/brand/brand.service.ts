@@ -8,12 +8,12 @@ import { CreateBrandDto } from './dto/create-brand.dto';
 // import { UpdateBrandDto } from './dto/update-brand.dto';
 import { BrandRepo } from 'src/DB/repo/brand.repo';
 import { BrandDocument, UserDocument } from 'src/DB/models';
+import { PaginationDto } from 'src/common';
 import { S3Service } from 'src/common/services';
 import { StorageEnum } from 'src/common/enums/multer.enum';
 import { Types } from 'mongoose';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { FolderEnum } from 'src/common/enums/foldr.enums';
-import { PaginationDto } from './dto/pagination.dto';
 @Injectable()
 export class BrandService {
   constructor(
