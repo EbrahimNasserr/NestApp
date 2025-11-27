@@ -4,3 +4,5 @@ export * from './otp.repo';
 export * from './token.repo';
 export * from './brand.repo';
 export * from './category.repo';
+export * from './product.repo';
+export * from './cart.repo';

@@ -4,7 +4,6 @@ import { ACCESS_ROLES_KEY } from 'src/common/decorators';
 import { RoleEnum } from 'src/common/enums';
 import { IAuthRequest } from 'src/common/interfaces/token.interface';
 
-
 @Injectable()
 export class AuthorizationGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}

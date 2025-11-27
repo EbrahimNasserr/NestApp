@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -40,6 +41,10 @@ export class ProductService {
     const assetsFolderId = Math.floor(
       100000 + Math.random() * 900000,
     ).toString();
+    const checkProduct = await this.productRepo.findOne({
+      filter: { name },
+    });
+    if (checkProduct) throw new ConflictException('Product name already exists');
     const images = await this.s3Service.uploadFiles({
       files,
       path: `${FolderEnum.CATEGORIES}/${category._id.toString()}/${FolderEnum.PRODUCTS}/${assetsFolderId}`,
