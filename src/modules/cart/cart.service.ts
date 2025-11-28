@@ -8,6 +8,8 @@ import { CreateCartDto } from './dto/create-cart.dto';
 import { CartRepo, ProductRepo } from 'src/DB/repo';
 import type { UserDocument } from 'src/DB/models/user.model';
 import type { CartDocument } from 'src/DB/models/cart.model';
+import { RemoveCartProductDto } from './dto/update-cart.dto';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class CartService {
@@ -80,17 +82,75 @@ export class CartService {
     };
   }
 
+  async removeProduct(
+    removeCartProductDto: RemoveCartProductDto,
+    user: UserDocument,
+  ): Promise<{
+    statusCode: HttpStatus;
+    message: string;
+    data: CartDocument;
+  }> {
+    const productId = new Types.ObjectId(removeCartProductDto.productId);
+    const cart = await this.cartRepo.findOneAndUpdate({
+      filter: { createdBy: user._id },
+      update: {
+        $pull: { products: { productId } },
+      },
+      options: { new: true },
+    });
+    if (!cart) {
+      throw new NotFoundException('Cart not found');
+    }
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Product removed from cart successfully',
+      data: cart as CartDocument,
+    };
+  }
+
+  async clearCart(user: UserDocument): Promise<{
+    statusCode: HttpStatus;
+    message: string;
+    data: CartDocument;
+  }> {
+    const deletedCart = await this.cartRepo.deleteOne({
+      filter: { createdBy: user._id },
+    });
+    if (!deletedCart) {
+      throw new NotFoundException('Cart not found');
+    }
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Cart cleared successfully',
+      data: deletedCart as unknown as CartDocument,
+    };
+  }
+
   findAll() {
     return `This action returns all cart`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} cart`;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  update(id: number, updateCartDto: UpdateCartDto) {
-    return `This action updates a #${id} cart`;
+  async findOne(user: UserDocument): Promise<{
+    statusCode: HttpStatus;
+    message: string;
+    data: CartDocument;
+  }> {
+    const cart = await this.cartRepo.findOne({
+      filter: { createdBy: user._id },
+      options: {
+        populate: {
+          path: 'products.productId',
+        },
+      },
+    });
+    if (!cart) {
+      throw new NotFoundException('Cart is empty');
+    }
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Cart found successfully',
+      data: cart as CartDocument,
+    };
   }
 
   remove(id: number) {

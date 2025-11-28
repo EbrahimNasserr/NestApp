@@ -8,6 +8,7 @@ import {
   UsePipes,
   ValidationPipe,
   HttpStatus,
+  Patch,
 } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { CreateCartDto } from './dto/create-cart.dto';
@@ -17,6 +18,7 @@ import { User } from 'src/common/decorators/credential.decorator';
 import type { UserDocument } from 'src/DB/models/user.model';
 import { IResponse, successResponse } from 'src/common';
 import { CartResponse } from './entities/cart.entity';
+import { RemoveCartProductDto } from './dto/update-cart.dto';
 
 @Auth([RoleEnum.USER])
 @UsePipes(
@@ -44,14 +46,43 @@ export class CartController {
     );
   }
 
-  @Get()
-  findAll() {
-    return this.cartService.findAll();
+  @Patch('remove-product')
+  async removeProduct(
+    @Body() removeCartProductDto: RemoveCartProductDto,
+    @User() user: UserDocument,
+  ): Promise<IResponse<CartResponse | undefined>> {
+    const { data, statusCode, message } = await this.cartService.removeProduct(
+      removeCartProductDto,
+      user,
+    );
+    return successResponse<CartResponse>(message, statusCode, {
+      cart: data,
+    });
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cartService.findOne(+id);
+  @Patch('clear-cart')
+  async clearCart(
+    @User() user: UserDocument,
+  ): Promise<IResponse<CartResponse | undefined>> {
+    const { data, statusCode, message } =
+      await this.cartService.clearCart(user);
+    return successResponse<CartResponse>(message, statusCode, {
+      cart: data,
+    });
+  }
+  // @Get()
+  // findAll() {
+  //   return this.cartService.findAll();
+  // }
+
+  @Get()
+  async findOne(
+    @User() user: UserDocument,
+  ): Promise<IResponse<CartResponse | undefined>> {
+    const { data, statusCode, message } = await this.cartService.findOne(user);
+    return successResponse<CartResponse>(message, statusCode, {
+      cart: data,
+    });
   }
 
   // @Patch(':id')

@@ -7,6 +7,7 @@ import {
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import type { ProductDocument, UserDocument } from 'src/DB';
+import { UserRepo } from 'src/DB/repo/user.repo';
 import { ProductRepo } from 'src/DB/repo/product.repo';
 import { BrandRepo } from 'src/DB/repo/brand.repo';
 import { CategoryRepo } from 'src/DB/repo/category.repo';
@@ -22,6 +23,7 @@ export class ProductService {
     private readonly s3Service: S3Service,
     private readonly brandRepo: BrandRepo,
     private readonly categoryRepo: CategoryRepo,
+    private readonly userRepo: UserRepo,
   ) {}
   async create(
     createProductDto: CreateProductDto,
@@ -44,7 +46,8 @@ export class ProductService {
     const checkProduct = await this.productRepo.findOne({
       filter: { name },
     });
-    if (checkProduct) throw new ConflictException('Product name already exists');
+    if (checkProduct)
+      throw new ConflictException('Product name already exists');
     const images = await this.s3Service.uploadFiles({
       files,
       path: `${FolderEnum.CATEGORIES}/${category._id.toString()}/${FolderEnum.PRODUCTS}/${assetsFolderId}`,
@@ -72,6 +75,78 @@ export class ProductService {
       throw new BadRequestException('Failed to create product');
     }
     return product[0] as ProductDocument;
+  }
+
+  async addToWishlist(
+    productId: Types.ObjectId,
+    user: UserDocument,
+  ): Promise<ProductDocument[]> {
+    const product = await this.productRepo.findOne({
+      filter: { _id: productId },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+    const updatedUser = await this.userRepo.findOneAndUpdate({
+      filter: { _id: user._id },
+      update: {
+        $push: { wishlist: product._id },
+      },
+      options: { new: true },
+    });
+    if (!updatedUser)
+      throw new BadRequestException('Failed to add product to wishlist');
+
+    // Fetch updated user with populated wishlist
+    const userWithWishlist = await this.userRepo.findOne({
+      filter: { _id: user._id },
+      options: {
+        populate: [{ path: 'wishlist' }],
+      },
+    });
+    const wishlist = userWithWishlist?.wishlist;
+    if (!wishlist || !Array.isArray(wishlist)) {
+      return [];
+    }
+    // After population, wishlist contains ProductDocuments
+    return wishlist.filter(
+      (item) => item && typeof item === 'object' && 'toObject' in item,
+    ) as unknown as ProductDocument[];
+  }
+
+  async removeFromWishlist(
+    productId: Types.ObjectId,
+    user: UserDocument,
+  ): Promise<ProductDocument[]> {
+    const product = await this.productRepo.findOne({
+      filter: { _id: productId },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+    const updatedUser = await this.userRepo.findOneAndUpdate({
+      filter: { _id: user._id },
+      update: {
+        $pull: {
+          wishlist: Types.ObjectId.createFromHexString(productId.toString()),
+        },
+      },
+      options: { new: true },
+    });
+    if (!updatedUser)
+      throw new BadRequestException('Failed to remove product from wishlist');
+
+    // Fetch updated user with populated wishlist
+    const userWithWishlist = await this.userRepo.findOne({
+      filter: { _id: user._id },
+      options: {
+        populate: [{ path: 'wishlist' }],
+      },
+    });
+    const wishlist = userWithWishlist?.wishlist;
+    if (!wishlist || !Array.isArray(wishlist)) {
+      return [];
+    }
+    // After population, wishlist contains ProductDocuments
+    return wishlist.filter(
+      (item) => item && typeof item === 'object' && 'toObject' in item,
+    ) as unknown as ProductDocument[];
   }
 
   async findAll(

@@ -6,7 +6,7 @@ import {
   Virtual,
 } from '@nestjs/mongoose';
 import { GenderEnum, generateHash, LangEnum, ProviderEnum, RoleEnum } from 'src/common';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { Otp, OtpDocument } from './otp.model';
 import { IUser } from 'src/common';
 
@@ -80,6 +80,9 @@ export class User implements IUser {
 
   @Virtual()
   otp: OtpDocument[];
+
+  @Prop({ type: [Types.ObjectId], ref: 'Product', required: false })
+  wishlist: Types.ObjectId[];
 }
 
 const UserSchema = SchemaFactory.createForClass(User);

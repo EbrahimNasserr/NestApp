@@ -61,7 +61,7 @@ export class ProductController {
   async findAll(@Query() query: PaginationDto): Promise<IResponse<any>> {
     const products = await this.productService.findAll(query);
     return successResponse('products fetched successfully', 200, {
-       products: products.data.map((product) => {
+      products: products.data.map((product) => {
         const productObj = product.toObject();
         // Remove internal MongoDB fields for cleaner response
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -163,5 +163,49 @@ export class ProductController {
   ): Promise<IResponse<ProductResponseEntity | undefined>> {
     await this.productService.remove(params.productId);
     return successResponse('product removed successfully', 200);
+  }
+
+  @Auth([RoleEnum.USER])
+  @Post(':productId/add-to-wishlist')
+  async addToWishlist(
+    @Param() params: ProductParamDto,
+    @User() user: UserDocument,
+  ): Promise<IResponse<any>> {
+    const wishlist = await this.productService.addToWishlist(
+      params.productId,
+      user,
+    );
+    const cleanWishlist = wishlist.map((product) => {
+      const productObj = product.toObject();
+      // Remove internal MongoDB fields for cleaner response
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { __v, createdBy, assetsFolderId, ...cleanProduct } = productObj;
+      return cleanProduct;
+    });
+    return successResponse('product added to wishlist successfully', 200, {
+      wishlist: cleanWishlist,
+    });
+  }
+
+  @Auth([RoleEnum.USER])
+  @Post(':productId/remove-from-wishlist')
+  async removeFromWishlist(
+    @Param() params: ProductParamDto,
+    @User() user: UserDocument,
+  ): Promise<IResponse<any>> {
+    const wishlist = await this.productService.removeFromWishlist(
+      params.productId,
+      user,
+    );
+    const cleanWishlist = wishlist.map((product) => {
+      const productObj = product.toObject();
+      // Remove internal MongoDB fields for cleaner response
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { __v, createdBy, assetsFolderId, ...cleanProduct } = productObj;
+      return cleanProduct;
+    });
+    return successResponse('product removed from wishlist successfully', 200, {
+      wishlist: cleanWishlist,
+    });
   }
 }

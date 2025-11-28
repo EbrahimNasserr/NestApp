@@ -6,6 +6,7 @@ import {
   RoleEnum,
 } from '../enums/user.provider';
 import { OtpDocument } from 'src/DB';
+import { IProduct } from './products.interface';
 export interface IUser {
   _id?: Types.ObjectId;
   id?: number;
@@ -44,5 +45,7 @@ export interface IUser {
 
   createdAt?: Date;
   updatedAt?: Date;
+
+  wishlist?: Types.ObjectId[] | IProduct[];
 }
 
