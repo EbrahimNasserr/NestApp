@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   MaxFileSizeValidator,
   ParseFilePipe,
   Patch,
@@ -48,7 +49,9 @@ export class UserController {
   ): Promise<IResponse<{ path: string } | undefined>> {
     const url = await this.userService.profileImage(user, file);
 
-    return successResponse('Profile image updated successfully', undefined, { path: url });
+    return successResponse('Profile image updated successfully', undefined, {
+      path: url,
+    });
   }
 
   @UseInterceptors(
@@ -83,5 +86,16 @@ export class UserController {
         path: relativePath,
       },
     };
+  }
+
+  @Auth([RoleEnum.USER, RoleEnum.ADMIN, RoleEnum.SUPER_ADMIN])
+  @Get('/profile')
+  async profile(@User() user: UserDocument) {
+    await user.populate('wishlist');
+    return successResponse(
+      'Profile fetched successfully',
+      200,
+      user.toObject(),
+    );
   }
 }

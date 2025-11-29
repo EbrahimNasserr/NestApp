@@ -10,7 +10,7 @@ export interface IBrand {
   createdBy: Types.ObjectId | IUser;
   createdAt?: Date;
   updatedAt?: Date;
-  updatedBy?: Date;
+  updatedBy?: Types.ObjectId | IUser;
   freezeAt?: Date;
   restoreAt?: Date;
 }

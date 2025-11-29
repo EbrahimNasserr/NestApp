@@ -6,3 +6,5 @@ export * from './brand.interface';
 export * from './category.interface';
 export * from './products.interface';
 export * from './cart.interface';
+export * from './coupon.interface';
+export * from './order.interface';

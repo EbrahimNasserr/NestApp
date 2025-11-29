@@ -6,3 +6,5 @@ export * from './brand.repo';
 export * from './category.repo';
 export * from './product.repo';
 export * from './cart.repo';
+export * from './coupon.repo';
+export * from './order.repo';
