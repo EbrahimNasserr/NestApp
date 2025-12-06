@@ -9,7 +9,7 @@ export interface IOrderProduct {
   productId: Types.ObjectId | IProduct;
   quantity: number;
   unitPrice: number;
-
+  finalPrice?: number | undefined;
   createdAt?: Date;
   updatedAt?: Date;
 }
