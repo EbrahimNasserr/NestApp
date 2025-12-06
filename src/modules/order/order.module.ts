@@ -1,13 +1,29 @@
 import { Module } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
-import { CartModel, CartRepo, CouponModel, CouponRepo, OrderModel, OrderRepo, ProductModel, ProductRepo } from 'src/DB';
+import {
+  CartModel,
+  CartRepo,
+  CouponModel,
+  CouponRepo,
+  OrderModel,
+  OrderRepo,
+  ProductModel,
+  ProductRepo,
+} from 'src/DB';
 import { AuthModule } from '../auth/auth.module';
-import { CartService } from '../cart/cart.service';
+import { CartModule } from '../cart/cart.module';
 
 @Module({
-  imports: [OrderModel, CartModel, ProductModel, CouponModel, AuthModule],
+  imports: [
+    OrderModel,
+    CartModel,
+    ProductModel,
+    CouponModel,
+    AuthModule,
+    CartModule,
+  ],
   controllers: [OrderController],
-  providers: [OrderService , OrderRepo, CartRepo, ProductRepo, CouponRepo, CartService],
+  providers: [OrderService, OrderRepo, CartRepo, ProductRepo, CouponRepo],
 })
 export class OrderModule {}

@@ -86,13 +86,13 @@ export type OrderDocument = HydratedDocument<Order>;
 
 const OrderSchema = SchemaFactory.createForClass(Order);
 
-OrderSchema.pre('save', function (next) {
-  if (this.isModified('totalPrice')) {
-    this.subTotalPrice =
-      this.totalPrice - this.totalPrice * (this.discount || 0);
-  }
-  next();
-});
+// OrderSchema.pre('save', function (next) {
+//   if (this.isModified('totalPrice')) {
+//     this.subTotalPrice =
+//       this.totalPrice - this.totalPrice * (this.discount || 0);
+//   }
+//   next();
+// });
 
 export const OrderModel = MongooseModule.forFeature([
   { name: Order.name, schema: OrderSchema },

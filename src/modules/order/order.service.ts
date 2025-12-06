@@ -12,12 +12,19 @@ import {
   OrderDocument,
   OrderProduct,
   OrderRepo,
+  ProductDocument,
   ProductRepo,
   UserDocument,
 } from 'src/DB';
-import { DiscountTypeEnum, PaymentTypeEnum } from 'src/common/enums';
+import {
+  DiscountTypeEnum,
+  OrderStatusPriorityEnum,
+  PaymentTypeEnum,
+} from 'src/common/enums';
 import { Types } from 'mongoose';
 import { CartService } from '../cart/cart.service';
+import { PaymentService } from 'src/common/services';
+import Stripe from 'stripe';
 
 @Injectable()
 export class OrderService {
@@ -27,6 +34,7 @@ export class OrderService {
     private readonly productRepo: ProductRepo,
     private readonly cartRepo: CartRepo,
     private readonly cartService: CartService,
+    private readonly paymentService: PaymentService,
   ) {}
 
   /**
@@ -78,6 +86,131 @@ export class OrderService {
     await this.cartService.clearCart(user);
 
     return order;
+  }
+
+  /**
+   * Creates a checkout session for an order
+   */
+  async checkout(
+    orderId: string,
+    user: UserDocument,
+  ): Promise<Stripe.Response<Stripe.Checkout.Session>> {
+    // Try to find order by orderId field first (e.g., "userId-timestamp")
+    // If orderId is a valid MongoDB ObjectId, also try searching by _id
+    let order: OrderDocument | null = null;
+
+    // Check if orderId is a valid MongoDB ObjectId (24 hex characters)
+    const isValidObjectId =
+      Types.ObjectId.isValid(orderId) && orderId.length === 24;
+
+    // For CARD payments, orders are created with PROCESSING status
+    // Allow both PENDING and PROCESSING statuses for checkout
+    const allowedStatuses = [
+      OrderStatusPriorityEnum.PENDING,
+      OrderStatusPriorityEnum.PROCESSING,
+    ];
+
+    if (isValidObjectId) {
+      // Try finding by _id first
+      order = await this.orderRepo.findOne({
+        filter: {
+          _id: new Types.ObjectId(orderId),
+          createdBy: user._id,
+          paymentType: PaymentTypeEnum.CARD,
+          status: { $in: allowedStatuses },
+        },
+        options: {
+          populate: {
+            path: 'products.productId',
+            select: 'name',
+          },
+        },
+      });
+    }
+
+    // If not found by _id or orderId is not a valid ObjectId, try by orderId field
+    if (!order) {
+      order = await this.orderRepo.findOne({
+        filter: {
+          orderId: orderId,
+          createdBy: user._id,
+          paymentType: PaymentTypeEnum.CARD,
+          status: { $in: allowedStatuses },
+        },
+        options: {
+          populate: {
+            path: 'products.productId',
+            select: 'name',
+          },
+        },
+      });
+    }
+
+    if (!order) {
+      // Check if order exists at all (without filters) to provide better error message
+      let orderExists: OrderDocument | null = null;
+
+      if (isValidObjectId) {
+        orderExists = await this.orderRepo.findOne({
+          filter: {
+            _id: new Types.ObjectId(orderId),
+            createdBy: user._id,
+          },
+        });
+      }
+
+      if (!orderExists) {
+        orderExists = await this.orderRepo.findOne({
+          filter: {
+            orderId: orderId,
+            createdBy: user._id,
+          },
+        });
+      }
+
+      if (!orderExists) {
+        throw new NotFoundException(
+          `Order with ID "${orderId}" not found for this user`,
+        );
+      }
+
+      // Order exists but doesn't meet checkout criteria
+      if (orderExists.paymentType !== PaymentTypeEnum.CARD) {
+        throw new BadRequestException(
+          `Order payment type is "${orderExists.paymentType}", but checkout is only available for CARD payments`,
+        );
+      }
+
+      if (!allowedStatuses.includes(orderExists.status)) {
+        throw new BadRequestException(
+          `Order status is "${orderExists.status}", but checkout is only available for orders with status PENDING or PROCESSING`,
+        );
+      }
+
+      // Fallback error
+      throw new NotFoundException(
+        'Order not found or not available for checkout',
+      );
+    }
+    const session = await this.paymentService.checkoutSession({
+      customer_email: user.email,
+      metadata: {
+        orderId: order.orderId || order._id.toString(),
+      },
+      line_items: order.products.map((product) => {
+        return {
+          quantity: product.quantity,
+          price_data: {
+            product_data: {
+              name: (product.productId as ProductDocument).name,
+            },
+            unit_amount: product.unitPrice * 100,
+            currency: 'egp',
+          },
+        };
+      }),
+    });
+    return session;
   }
 
   /**

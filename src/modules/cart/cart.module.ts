@@ -9,5 +9,6 @@ import { AuthModule } from '../auth/auth.module';
   imports: [CartModel, ProductModel, AuthModule],
   controllers: [CartController],
   providers: [CartService, CartRepo, ProductRepo],
+  exports: [CartService],
 })
 export class CartModule {}

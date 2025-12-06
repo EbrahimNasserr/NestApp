@@ -6,6 +6,7 @@ import {
   ValidationPipe,
   HttpCode,
   HttpStatus,
+  Param,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -14,6 +15,7 @@ import { Auth } from 'src/common/decorators/auth.decorator';
 import { IResponse, RoleEnum, successResponse, User } from 'src/common';
 import type { UserDocument } from 'src/DB';
 import { OrderResponseEntity } from './entities/order.entity';
+import Stripe from 'stripe';
 
 @UsePipes(
   new ValidationPipe({
@@ -44,6 +46,21 @@ export class OrderController {
       'Order created successfully',
       HttpStatus.CREATED,
       { order },
+    );
+  }
+
+  @Auth([RoleEnum.USER])
+  @Post('checkout/:orderId')
+  @HttpCode(HttpStatus.CREATED)
+  async checkout(
+    @Param('orderId') orderId: string,
+    @User() user: UserDocument,
+  ): Promise<IResponse<Stripe.Response<Stripe.Checkout.Session> | undefined>> {
+    const session = await this.orderService.checkout(orderId, user);
+    return successResponse<Stripe.Response<Stripe.Checkout.Session>>(
+      'Checkout session created successfully',
+      HttpStatus.CREATED,
+      session,
     );
   }
 
